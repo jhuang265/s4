@@ -1,0 +1,8 @@
+_name_: lru
+d_model: 384
+activation: gelu
+mult_act: null
+rnn_parameterization: lru
+rmin: 0.9
+rmax: 0.999
+max_phase_factor: 2.0

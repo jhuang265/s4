@@ -94,6 +94,7 @@ layer = {
     "h3":         "src.models.sequence.experimental.h3.H3",
     "h4":         "src.models.sequence.experimental.h4.H4",
     # 'packedrnn': 'models.sequence.rnns.packedrnn.PackedRNN',
+    "lru":        "src.models.sequence.rnns.lru.LRU",
 }
 
 layer_decay = {

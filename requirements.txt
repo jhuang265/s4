@@ -16,6 +16,7 @@ einops
 cmake # For pykeops support
 # pykeops # Seems to cause various issues; leaving uninstalled by default
 transformers # For some schedulers
+chardet
 
 # Model specific packges
 # pytorch-fast-transformers # for Performer

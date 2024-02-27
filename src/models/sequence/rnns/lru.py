@@ -163,6 +163,7 @@ class LRU(SequenceModule):
         **kwargs
     ):
         assert rnn_parameterization in ['real', 'lru']
+        assert transposed == False
         
         super().__init__()
         self.d_input = d_input
@@ -221,9 +222,12 @@ class LRU(SequenceModule):
         """
         input_sequence.shape == [batch, length, d_model]
         """
-        if self.transposed: 
+        
+        # Change from [batch, length, input_size] to [batch, input_size, length]. Technically we can't do this now so it will always be false
+        if self.transposed:
             input_sequence = rearrange(input_sequence, 'b d ... -> b ... d')
         
+        # Set up exp(A) and B for the recurrence (as well as our input)
         if self.rnn_parameterization == 'lru':
             Lambda = torch.exp(-self.nu_log.exp() + 1j * self.theta_log.exp())
             B_norm = self.B * self.gamma_log.exp().unsqueeze(1)
@@ -234,29 +238,33 @@ class LRU(SequenceModule):
             B_norm = self.B
             B_input =  input_sequence
 
+        # Recurrence through scanning operation
         Lambda_elements = Lambda.repeat(input_sequence.shape[1], 1)
         # Bu_elements = torch.einsum('btd,nd->btn', input_sequence + 0j, B_norm) # [batch, len, dim] @ [dim, outdim] = [batch, len, outdim]
         Bu_elements = torch.einsum('btd,nd->btn', B_input, B_norm)
         elements = (Lambda_elements.unsqueeze(0).to(Bu_elements.dtype), Bu_elements)
         _, inner_states = associative_scan(binary_operator_diag_torch, elements, axis=1)
         
+        # Get the proper output component
         if self.rnn_parameterization == 'lru':
             y = torch.einsum('btd,nd->btn', inner_states, self.C).real
         
         elif self.rnn_parameterization == 'real':
             y = torch.einsum('btd,nd->btn', inner_states, self.C)
         
+        # Add the direct connection from input to output
         if self.diag_D:
             y += self.D * input_sequence
-        
         else:
             y += torch.einsum('btd,nd->btn', input_sequence, self.D)
-            
+        
+        # Intermediate activation (if any)    
         y = self.activation(y)
         
+        # Additional activation if specified
         if self.mult_act in ["full_glu"]:
             y = self.drop(y)
-            y = self.out1(y) * F.sigmoid(self.out2(y))    
+            y = self.out1(y) * F.sigmoid(self.out2(y))
         elif self.mult_act in ["half_glu1"]:
             y = self.drop(y)
             y = y * F.sigmoid(self.out2(y))
@@ -265,6 +273,7 @@ class LRU(SequenceModule):
             x1 = self.drop(y)
             y = y * F.sigmoid(self.out2(x1))
         
+        # Rearrange to proper shape
         if self.transposed: 
             y = rearrange(y, 'b d ... -> b ... d')
         

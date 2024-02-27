@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
-  - /pipeline: cifar
+  - /pipeline: imdb
   - /model: lru
   - override /scheduler: cosine_warmup
 
@@ -8,35 +8,39 @@ model:
   dropout: 0.1
   tie_dropout: true
   n_layers: 6
-  d_model: 512
+  d_model: 256
   prenorm: true
   norm: batch
   layer:
-    d_model: 384
+    d_model: 192
     activation: gelu
     mult_act: null
     rnn_parameterization: lru
-    rmin: 0.9
-    rmax: 0.999
+    rmin: 0.5
+    rmax: 0.9
     max_phase_factor: 2.0
 
 dataset:
-  grayscale: true
+  l_max: 4096
+  level: char
 
 loader:
-  batch_size: 50
+  batch_size: 32
+
+decoder:
+  mode: pool
 
 optimizer:
-  lr:  0.005
+  lr:  0.004
   weight_decay: 0.05
 
 trainer:
-  max_epochs: 200
+  max_epochs: 64
 
 scheduler:
-  num_training_steps: 180000  # 200 epochs
-  num_warmup_steps: 18000
+  num_training_steps: 50000
+  num_warmup_steps: 5000
 
 train:
-  lr_factor: 0.25
+  lr_factor: 0.1
   seed: 2222

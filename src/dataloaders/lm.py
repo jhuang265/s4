@@ -32,7 +32,7 @@ log = src.utils.train.get_logger(__name__)
 
 
 from src.dataloaders.base import SequenceDataset, default_data_path
-from src.dataloaders.utils.vocabulary import OpenAIVocab, Vocab
+from src.dataloaders.utils.vocabulary import OpenAIVocab, TinyStoriesVocab, Vocab
 import src.utils as utils
 
 # TODO: create a package so we don't have to mess with sys.path?
@@ -301,7 +301,6 @@ class LMMultiFileIterator(LMShuffledIterator):
             for batch in self.stream_iterator(sent_stream):
                 yield batch
 
-
 class WikiText2(SequenceDataset):
     _name_ = "wt2"
 
@@ -430,6 +429,126 @@ class WikiText103(WikiText2):
     def _vocab_count(self):
         print(self.data_dir)
         self.vocab.count_file(self.data_dir / "train.txt")
+
+
+class TinyStories(SequenceDataset):
+    _name_ = "tinystories"
+
+    # Vocab arguments
+    vocab_kwargs = {"special": ["<eos>"], "lower_case": False}
+    encode_kwargs = {"ordered": True}
+
+    init_defaults = {
+        # Dataset arguments
+        'l_max': 512,
+        'bpe': True,
+        'roll_seed': 42,
+        'test_split': True,
+    }
+
+    @property
+    def n_tokens(self):
+        return len(self.vocab)
+
+    def prepare_data(self):
+        # [21-09-23] probably broken
+        if not self.data_dir.exists():
+            subprocess.run(
+                [
+                    str(project_root / "data" / "getdata.sh"),
+                    self._name_,
+                    str(self.data_dir.parent.absolute()),
+                ],
+                check=True,
+            )
+
+    def setup(self, stage=None): # [21-09-10 AG]: TODO shouldn't this tokenization happen in the prepare_data? since we're caching it it doesn't really matter, but still
+        if self.data_dir is None: self.data_dir = default_data_path / self._name_
+        self.vocab = TinyStoriesVocab()
+        # if self.bpe:
+        #     self.vocab = TinyStoriesVocab()
+        # else:
+        #     self.vocab = Vocab(**self.vocab_kwargs)
+
+        # Loader arguments
+        if not self._load_from_cache():
+            logging.info(f"Producing dataset {self._name_}...")
+            self._vocab_count()
+            self.vocab.build_vocab()
+            self.train = self.vocab.encode_file(
+                str(self.data_dir / "train.txt"), **self.encode_kwargs
+            )
+            self.valid = self.vocab.encode_file(
+                str(self.data_dir / "valid.txt"), **self.encode_kwargs
+            )
+            self._save_to_cache()
+
+        # No test set if specified
+        if not self.test_split:
+            self.test = None
+
+        # Define task
+        print("Vocab size:", len(self.vocab))
+
+    def _vocab_count(self):
+        self.vocab.count_file(self.data_dir / "train.txt")
+        self.vocab.count_file(self.data_dir / "valid.txt")
+
+    def _save_to_cache(self):
+        cache_path = self.data_dir / f"cache.pt" # TODO name could include vocab_kwargs to disambiguate
+        with distributed.sync_workers() as rank:
+            if rank == 0:
+                try:
+                    torch.save(
+                        (self.vocab, self.train, self.valid, self.test),
+                        cache_path,
+                    )
+                    logging.info(f"Saved dataset to {cache_path}...")
+                except:
+                    pass
+
+    def _load_from_cache(self):
+        cache_path = self.data_dir / f"cache.pt"
+        if cache_path.exists():
+            logging.info("Loading cached dataset...")
+            self.vocab, self.train, self.valid, self.test = torch.load(
+                cache_path
+            )
+            return True
+        else:
+            return False
+
+    def train_dataloader(self, eval=None, **kwargs):
+        # TODO kwargs absorbs num_workers
+        return LMOrderedIterator(
+            self.train,
+            roll_seed=self.roll_seed,
+            **kwargs,
+        )
+
+    # def val_dataloader(self, batch_size, **kwargs):
+    def _eval_dataloader(self, dataset, eval=None, **loader_args):
+        if dataset is None: return None
+        # Make eval a list of dictionaries
+        if eval is None: eval = {}
+        if not utils.is_list(eval):
+            eval = [eval]
+        # Each eval setting overrides the train setting
+        for eval_args in eval:
+            for k in loader_args:
+                if eval_args.get(k, None) is None:
+                    eval_args[k] = loader_args[k]
+            print("eval loader:", eval_args)
+        loaders = [LMOrderedIterator(dataset, **eval_args) for eval_args in eval]
+        if len(loaders) == 1: return loaders[0]
+        return loaders
+
+    # TODO: Will need to split the train set to create validation set. Should be ok for now though.
+    def val_dataloader(self, **kwargs):
+        return self._eval_dataloader(self.valid, **kwargs)
+
+    def test_dataloader(self, **kwargs):
+        return self._eval_dataloader(self.valid, **kwargs)
 
 
 class PennTreeBank(WikiText2):

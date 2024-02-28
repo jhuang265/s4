@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - /trainer: lm # Overrides ddp among other things
+  - /loader: lm # Custom LM iterator
+  - /dataset: tinystories
+  - /optimizer: adamw
+  - /scheduler: cosine_warmup
+
+train:
+  monitor: val/loss
+  mode: min
+
+task:
+  _name_: lm
+  # loss: null # Defined by task already
+  metrics:
+    - ppl
+
+encoder: null # Handled by AdaptiveLM: adaptive embeddings
+decoder: sequence

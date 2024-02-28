@@ -346,7 +346,10 @@ class LRU(SequenceModule):
         """Convert state into a single tensor output."""
         return lambda state: state
 
-nonlin = lambda x: getattr(F, x) if x != 'identity' else identity
+nonlin = lambda x: getattr(F, x) if x != 'identity' else lambda x: x
+    
+def bin_op_cumsum(e_i, e_j):
+    return e_i + e_j
 
 class NRU(nn.Module):
     def __init__(
@@ -383,9 +386,9 @@ class NRU(nn.Module):
         self.alpha_minus_nonlin = nonlin(alpha_minus_nonlin)
         self.v_minus_nonlin = nonlin(v_minus_nonlin)self.rank = rank
         
-        sqrt_dim = int(math.sqrt(num_heads * m_features))
+        sqrt_dim = int(math.sqrt(num_heads * self.d_memory))
         self.sqrt_dim = sqrt_dim
-        self.alpha_v = nn.Linear(in_features, 2 * num_heads + 4 * sqrt_dim * rank, bias=alpha_v_bias)
+        self.alpha_v = nn.Linear(self.d_input, 2 * num_heads + 4 * sqrt_dim * rank, bias=alpha_v_bias)
         
         # self.alpha_v = nn.Linear(self.d_input, 4 * self.d_memory, bias=alpha_v_bias)
         self.B = nn.Linear(self.d_input, self.d_state, bias=False)

@@ -481,6 +481,9 @@ class TinyStories(SequenceDataset):
             self.valid = self.vocab.encode_file(
                 str(self.data_dir / "valid.txt"), **self.encode_kwargs
             )
+            self.test = self.vocab.encode_file(
+                str(self.data_dir / "valid.txt"), **self.encode_kwargs
+            )
             self._save_to_cache()
 
         # No test set if specified
@@ -492,6 +495,7 @@ class TinyStories(SequenceDataset):
 
     def _vocab_count(self):
         self.vocab.count_file(self.data_dir / "train.txt")
+        self.vocab.count_file(self.data_dir / "valid.txt")
         self.vocab.count_file(self.data_dir / "valid.txt")
 
     def _save_to_cache(self):

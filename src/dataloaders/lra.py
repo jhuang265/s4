@@ -68,7 +68,7 @@ class IMDB(SequenceDataset):
         dataset_train, self.dataset_test = dataset["train"], dataset["test"]
         if self.val_split == 0.0:
             # Use test set as val set, as done in the LRA paper
-            self.dataset_train, self.dataset_val = dataset_train, None
+            self.dataset_train, self.dataset_val = dataset_train, self.dataset_test
         else:
             train_val = dataset_train.train_test_split(
                 test_size=self.val_split, seed=self.seed
@@ -143,6 +143,7 @@ class IMDB(SequenceDataset):
 
         if cache_dir is not None:
             self._save_to_cache(dataset, tokenizer, vocab, cache_dir)
+        
         return dataset, tokenizer, vocab
 
     def _save_to_cache(self, dataset, tokenizer, vocab, cache_dir):
@@ -342,6 +343,7 @@ class ListOps(SequenceDataset):
 
         if cache_dir is not None:
             self._save_to_cache(dataset, tokenizer, vocab, cache_dir)
+        
         return dataset, tokenizer, vocab
 
     def _save_to_cache(self, dataset, tokenizer, vocab, cache_dir):
@@ -363,6 +365,7 @@ class ListOps(SequenceDataset):
             tokenizer = pickle.load(f)
         with open(cache_dir / "vocab.pkl", "rb") as f:
             vocab = pickle.load(f)
+        
         return dataset, tokenizer, vocab
 
 class PathFinderDataset(torch.utils.data.Dataset):

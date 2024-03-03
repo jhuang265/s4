@@ -90,4 +90,35 @@ class Laplace(nn.Module):
     def forward(self, x):
         return laplace(x, mu=self.mu, sigma=self.sigma)
 
+class GatedMLP(nn.Module):
+    def __init__(
+        self,
+        d_input,
+        expansion_factor: float = 1,
+        activation: str = 'gelu',
+        bias: bool = True,
+        **kwargs
+    ):
+        super().__init__()
+        self.d_in = d_input
+        self.activation = Activation(activation)
+        self.d_int = int(self.d_in * expansion_factor)
+
+        self.in2int1 = nn.Linear(self.d_in, self.d_int, bias=bias)
+        self.in2int2 = nn.Linear(self.d_in, self.d_int, bias=bias)
+        self.int2out = nn.Linear(self.d_int, self.d_in, bias=bias)
+
+    def forward(self, x, *args, **kwargs):
+
+        int_1 = self.in2int1(x)
+        int_2 = self.in2int2(x)
+
+        out = self.int2out(int_1 * self.activation(int_2))
+
+        return out, None
+
+    @property
+    def d_output(self):
+        """Size of output."""
+        return self.d_in
 

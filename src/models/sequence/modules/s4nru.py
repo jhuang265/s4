@@ -9,7 +9,7 @@ from einops import rearrange, repeat
 
 from src.models.nn import LinearActivation, Activation, DropoutNd
 from src.models.sequence.base import SequenceModule
-from src.models.sequence.kernels.fftconv import FFTConv
+from src.models.sequence.kernels_new.fftconv import FFTConv
 import src.utils as utils
 import src.utils.registry as registry
 
@@ -88,7 +88,7 @@ class S4Block(SequenceModule):
             )
             if self.layer.d_output != self.d_model * gate:
                 self.output_gate = LinearActivation(
-                    self.d_model * self.channels,
+                    self.d_model*self.channels,
                     self.d_model * gate,
                     transposed=False,
                     initializer=initializer,
@@ -107,35 +107,6 @@ class S4Block(SequenceModule):
         layer_cfg['transposed'] = False
         layer_cfg['dropout'] = dropout
         self.layer = utils.instantiate(registry.layer, layer_cfg, d_model)
-
-        # Pointwise operations
-        # Activation after layer
-        self.activation = Activation(activation)
-
-        # Activation after (optional) multiplication by gate branch
-        self.mult_activation = Activation(mult_act)
-        # dropout_fn = nn.Dropout2d if self.transposed else nn.Dropout # Broken in torch==1.11
-        dropout_fn = partial(DropoutNd, transposed=False) if tie_dropout else nn.Dropout
-        self.drop = dropout_fn(dropout) if dropout > 0.0 else nn.Identity()
-
-        # position-wise output transform to mix features
-        if postact is not None:
-            assert final_act is None
-            log.warning("Warning: 'postact' option changed to 'final_act' and will be removed in a future version.")
-            final_act, postact = postact, final_act
-        if final_act is None:
-            self.output_linear = nn.Identity()
-        else:
-            self.output_linear = LinearActivation(
-                self.d_model*gate if gate is not None else self.layer.d_output,
-                self.d_model,
-                transposed=False,
-                initializer=initializer,
-                activation=final_act,
-                activate=True,
-                weight_norm=weight_norm,
-            )
-
 
 
     def forward(self, x, lengths=None, **kwargs): # absorbs return_output and transformer src mask
@@ -159,25 +130,13 @@ class S4Block(SequenceModule):
             assert isinstance(lengths, torch.Tensor) and lengths.ndim == 1 and lengths.size(0) in [1, x.size(0)]
             mask = torch.where(torch.arange(L, device=lengths.device)[:, None] < lengths[:, None, None], 1., 0.)
             x = x * mask
-
-        if self.gate is not None:
-            v = self.input_gate(x)
             
-        if self.bottleneck is not None:
-            x = self.input_linear(x)
-
         y, state = self.layer(x, **kwargs)
 
-        y = self.activation(y)
-
-        if self.gate is not None:
-            y = self.output_gate(y)
-            y = y * v
-        y = self.mult_activation(y)
-        y = self.drop(y)
-        y = self.output_linear(y)
-
         if self.transposed: y = rearrange(y, 'b d ... -> b ... d')
+        
+        # print(y.shape)
+        log.log(level=1, msg=f"y.shape: {y.shape}")
 
         return y, state
 
@@ -191,19 +150,8 @@ class S4Block(SequenceModule):
         state: (B H N)
         Returns: output (B H), state (B H N)
         """
-
-        if self.gate is not None:
-            v = self.input_gate(x)
-        if self.bottleneck is not None:
-            x = self.input_linear(x)
         y, next_state = self.layer.step(x, state) # (B C H)
-        y = self.activation(y)
-        if self.gate is not None:
-            y = self.output_gate(y)
-            y = y * v
-        y = self.mult_activation(y)
-        y = self.drop(y)
-        y = self.output_linear(y)
+        
         return y, next_state
 
     def default_state(self, *batch_shape, device=None):

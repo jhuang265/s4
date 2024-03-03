@@ -95,6 +95,10 @@ layer = {
     "h4":         "src.models.sequence.experimental.h4.H4",
     # 'packedrnn': 'models.sequence.rnns.packedrnn.PackedRNN',
     "lru":        "src.models.sequence.rnns.lru.LRU",
+    "nru":        "src.models.sequence.rnns.nru.NRU",
+    "nru_v1":        "src.models.sequence.rnns.nru.NRU_v1",
+    "s4nru":      "src.models.sequence.modules.s4nru.S4Block",
+    "gated_mlp":  "src.models.nn.activation.GatedMLP"
 }
 
 layer_decay = {

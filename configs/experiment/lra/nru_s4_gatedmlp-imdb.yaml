@@ -1,0 +1,38 @@
+# @package _global_
+defaults:
+  - /pipeline: imdb
+  - /model: nru
+  - override /scheduler: cosine_warmup
+  - override /model/layer: nru_s4-gatedmlp-imdb
+
+model:
+  dropout: 0.1
+  tie_dropout: true
+  n_layers: 6
+  d_model: 256
+  prenorm: true
+  norm: batch
+
+dataset:
+  l_max: 4096
+  level: char
+
+loader:
+  batch_size: 16
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.05
+
+scheduler:
+  num_training_steps: 50000
+  num_warmup_steps: 5000
+
+trainer:
+  max_epochs: 32
+
+train:
+  seed: 3333
+
+decoder:
+  mode: pool

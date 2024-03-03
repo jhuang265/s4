@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 
 from src.models.sequence import SequenceModule
-from src.models.sequence.kernels import registry as kernel_registry
+from src.models.sequence.kernels_new import registry as kernel_registry
 from src.models.nn import Activation, DropoutNd
 
 contract = torch.einsum
@@ -28,6 +28,7 @@ class FFTConv(SequenceModule):
     def __init__(
         self,
         d_model,
+        d_output,
         l_max=None,
         channels=1,
         swap_channels=False,
@@ -43,6 +44,7 @@ class FFTConv(SequenceModule):
     ):
         super().__init__()
         self.d_model = d_model
+        self.d_out = d_output
         self.L = self.l_max = l_max
         self.bidirectional = bidirectional
         self.channels = channels
@@ -54,7 +56,7 @@ class FFTConv(SequenceModule):
             channels *= 2
         self.activation = Activation(activation, dim=1 if self.transposed else -1)
 
-        self.D = nn.Parameter(torch.randn(channels, self.d_model))
+        self.D = nn.Parameter(torch.randn(channels, self.d_out))
 
         if self.bidirectional:
             channels *= 2
@@ -70,6 +72,7 @@ class FFTConv(SequenceModule):
         kernel_cls = kernel_registry[kernel]
         self.kernel = kernel_cls(
             d_model=self.d_model,
+            d_output=self.d_out,
             l_max=self.l_max,
             channels=channels,
             **kernel_args,
@@ -169,7 +172,7 @@ class FFTConv(SequenceModule):
 
     @property
     def d_output(self):
-        return self.d_model * self.channels
+        return self.d_out * self.channels
 
     @property
     def state_to_tensor(self):

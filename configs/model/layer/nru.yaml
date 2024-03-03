@@ -1,0 +1,22 @@
+_name_: nru
+d_hidden: 256
+d_memory: 256
+alpha_v_bias: True
+# TODO: For a more granular control over biases, uncomment these
+# alpha_plus_bias=True, v_plus_bias=True,
+# alpha_minus_bias=True, v_minus_bias=True,
+alpha_plus_nonlin: 'sigmoid'
+v_plus_nonlin: 'relu'
+alpha_minus_nonlin: 'sigmoid'
+v_minus_nonlin: 'relu'
+num_heads: 1
+rank: 1
+norm_p: 5
+gate: False
+gate_loc: 'input'
+gate_activation: 'gelu'
+gate_expansion: 1
+dropout: 0.0
+tie_dropout: False
+transposed: True
+layer: 'lru'

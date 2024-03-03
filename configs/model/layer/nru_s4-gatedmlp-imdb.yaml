@@ -1,0 +1,60 @@
+- _name_: nru
+  d_hidden: 192
+  d_memory: 256
+  alpha_v_bias: True
+  # TODO: For a more granular control over biases, uncomment these
+  # alpha_plus_bias=True, v_plus_bias=True,
+  # alpha_minus_bias=True, v_minus_bias=True,
+  alpha_plus_nonlin: 'sigmoid'
+  v_plus_nonlin: 'sigmoid'
+  alpha_minus_nonlin: 'tanh'
+  v_minus_nonlin: 'tanh'
+  num_heads: 1
+  rank: 1
+  norm_p: 5
+  gate: False
+  gate_loc: 'input'
+  gate_activation: 'gelu'
+  gate_expansion: 1
+  dropout: 0.0
+  tie_dropout: False
+  transposed: True
+  layer: s4nru
+  layer_args:
+    bidirectional: true
+    d_state: 4
+    channels: 1
+    gate: null # 4 for GSS
+    gate_act: id # 4 for GSS
+    bottleneck: null # 4 for GSS
+    activation: gelu
+    mult_act: null
+    final_act: glu # Final activation after FF layer; new name for 'postact'
+    postact: null  # Deprecated for 'final_act'
+    initializer: null
+    weight_norm: false
+    # dropout: ${model.dropout} # Same as null
+    tie_dropout: ${oc.select:model.tie_dropout,null}
+    # Layer arguments
+    layer: fftconv
+    # Kernel arguments
+    mode: nplr
+    init: legs  # Initialization option; new name for 'measure'
+    measure: null  # Deprecated for 'init'
+    rank: 1
+    dt_min: 0.001
+    dt_max: 0.1
+    dt_transform: softplus  # Use 'exp' for any backwards-compatible experiments
+    lr:
+      dt: null
+      A: 0.001
+      B: 0.001
+    wd: 0.0 # Can be dictionary like lr
+    n_ssm: 1
+    drop_kernel: 0.0
+    deterministic: false # Special C init
+    l_max: ${oc.select:dataset.__l_max,null} # Grab dataset length if exists, otherwise set to 1 and kernel will automatically resize
+    verbose: true
+- _name_: gated_mlp
+  activation: 'gelu'
+  expansion_factor: 2

@@ -36,6 +36,7 @@ class Kernel(nn.Module):
     def __init__(
         self,
         d_model: int = 0,
+        # d_output: int = 0,
         channels: int = 1,
         l_max: Optional[int] = None,
         lr: Union[float, Optional[Mapping]] = None,
@@ -46,6 +47,7 @@ class Kernel(nn.Module):
         """General interface.
 
         d_model (H): Model dimension, or number of independent convolution kernels created.
+        d_output (O): Output dimension (this was added by Jerry)
         channels (C): Extra dimension in the returned output (see .forward()).
             - One interpretation is that it expands the input dimension giving it C separate "heads" per feature.
               That is convolving by this kernel maps shape (B L D) -> (B L C D)
@@ -62,6 +64,7 @@ class Kernel(nn.Module):
         super().__init__()
         assert d_model > 0
         self.H = self.d_model = d_model
+        # self.O = self.d_output = d_output
         self.L = self.l_max = l_max
         self.channels = channels
         self.lr = lr
@@ -103,14 +106,14 @@ class Kernel(nn.Module):
 
         Returns:
           - (C, H, L) (channels, d_model, l_kernel) The convolution kernel.
-          - (B, H, L) (batch, d_model, l_kernel)
+          - (B, O, L) (batch, d_output, l_kernel)
               Extra information for how the state affects the output of convolving by kernel.
         """
         raise NotImplementedError
 
     def register(self, name, tensor, lr=None, wd=0.0):
         """Register a tensor with a configurable learning rate and 0 weight decay"""
-        
+
         if lr == 0.0:
             print(f"Registering {name} as a buffer.")
             self.register_buffer(name, tensor)

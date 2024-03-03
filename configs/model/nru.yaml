@@ -1,0 +1,6 @@
+defaults:
+  - base
+  - override layer: nru
+
+transposed: false # Actually faster than "true"
+tie_dropout: true
